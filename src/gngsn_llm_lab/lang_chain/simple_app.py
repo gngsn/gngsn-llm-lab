@@ -6,6 +6,7 @@ from langchain.chains import RetrievalQA
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_chroma import Chroma
 from dotenv import load_dotenv
+from langchain.chains import ConversationalRetrievalChain
 
 
 def get_working_dir():
@@ -21,6 +22,7 @@ def get_working_dir():
 load_dotenv()
 root_dir = get_working_dir()
 
+
 loader = PyPDFLoader(root_dir + "/data/오가노이드사이언스_증권신고서.pdf")
 documents = loader.load()
 
@@ -29,13 +31,20 @@ vectorstore = Chroma.from_documents(
     documents, GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
 )
 retriever = vectorstore.as_retriever()
-qa = RetrievalQA.from_chain_type(llm=chat, retriever=retriever)
+qa = ConversationalRetrievalChain.from_llm(
+    llm=chat, chain_type="stuff", retriever=retriever
+)
 
+chat_history = []
 
 while True:
     user_input = input("You: ")
     if user_input.lower() == "exit":
         break
-    response = qa.run(user_input)
+
+    response = qa({"question": user_input, "chat_history": chat_history})
+
+    history = (response["question"], response["answer"])
+    chat_history.append(history)
 
     print("Bot:", response)
